@@ -1,5 +1,6 @@
 import pygame as pg
 import random
+import sys
 
 pg.init()
 screen_width, screen_height = 800, 600
@@ -82,18 +83,27 @@ def bullet_model():
 def bullet_create():
     global bullet_x, bullet_y, bullet_alive
     bullet_alive = True
-    bullet_x = player_x + player_width / 2 - bullet_width / 2  # Здесь мы изменяем x-координату пули так, чтобы она вылетала из середины игрока.
+    bullet_x = player_x + player_width / 2 - bullet_width / 2  # Здесь мы изменяем x-координату пули так, чтобы она
+    # вылетала из середины игрока.
     bullet_y = player_y - bullet_height
+
 
 # Функция bullet_update, которая обновляет положение пули.
 def bullet_update():
-    global bullet_x, bullet_y, bullet_alive, player_x, player_width, bullet_width
-    if bullet_alive:  # Если пуля активна
-        bullet_x = player_x + player_width // 2 - bullet_width // 2 # Обновляем x-координату пули, чтобы соответствовать x-координате игрока.
-        bullet_y -= bullet_velocity  # Пуля продолжает движение вверх.
-        if bullet_y < 0:  # Если пуля достигает верхней части экрана
-            bullet_y = player_y - bullet_height  # Сбрасываем положение пули
-            bullet_alive = False  # Пуля становится неактивной
+    global bullet_y, bullet_alive, bullet_velocity
+    if bullet_alive:
+        bullet_y -= bullet_velocity
+        if bullet_y < 0:
+            bullet_y = player_y - bullet_height
+            bullet_alive = False
+    # global bullet_x, bullet_y, bullet_alive, player_x, player_width, bullet_width
+    # if bullet_alive:  # Если пуля активна
+    #     bullet_x = player_x + player_width // 2 - bullet_width // 2  # Обновляем x-координату пули, чтобы
+    #     # соответствовать x-координате игрока.
+    #     bullet_y -= bullet_velocity  # Пуля продолжает движение вверх.
+    #     if bullet_y < 0:  # Если пуля достигает верхней части экрана
+    #         bullet_y = player_y - bullet_height  # Сбрасываем положение пули
+    #         bullet_alive = False  # Пуля становится неактивной
 
 
 def game_over_screen():
@@ -102,25 +112,35 @@ def game_over_screen():
     pg.time.wait(2000)  # Ожидание 2 секунды перед закрытием
 
 
+# noinspection PyUnreachableCode
 def victory_screen():
     victory_text = font.render('You Win!', True, 'green')
-    w, h = victory_text.get_size()
-    display.blit(victory_text, (screen_width / 2 - w / 2, screen_height / 2 - h / 2))
+    w_m, h_m = victory_text.get_size()
+    display.blit(victory_text, (screen_width / 2 - w_m / 2, screen_height / 2 - h_m / 2))
     pg.display.update()
     pg.time.wait(2000)  # Ожидание 2 секунды перед закрытием
+    pg.quit()
+    sys.exit()  # Ожидание 2 секунды перед закрытием
+    return False
 
 
+# noinspection PyUnreachableCode
 def defeat_screen():
     defeat_text = font.render('defeat', True, 'Red')
-    w, h = defeat_text.get_size()
-    display.blit(defeat_text, (screen_width / 2 - w / 2, screen_height / 2 - h / 2))
+    w_m, h_m = defeat_text.get_size()
+    display.blit(defeat_text, (screen_width / 2 - w_m / 2, screen_height / 2 - h_m / 2))
     pg.display.update()
     pg.time.wait(2000)  # Ожидание 2 секунды перед закрытием
+    pg.quit()
+    sys.exit()  # Ожидание 2 секунды перед закрытием
+    return False
 
 
 def enemy_model():
+    global player_x, player_y, player_width, player_height
     global enemy_x, enemy_y, bullet_alive, counter_enemy, missed_shots, score
     global enemy_dx, enemy_dy, screen_width, enemy_width
+
     enemy_x += enemy_dx
     enemy_y += enemy_dy
 
@@ -135,16 +155,30 @@ def enemy_model():
             print("BANG!")
             enemy_create()
             if counter_enemy >= 5:
-                victory_screen()
-                return False
+                running_m = victory_screen()
+                return running_m
+            if missed_shots >= 3:
+                running_m = defeat_screen()
+                return running_m
+            return True
+
         # промах
         elif enemy_y + enemy_height > screen_height:
             missed_shots += 1
             print("Missed!")
             enemy_create()
-            if missed_shots >= 1:
+            if missed_shots >= 3:
                 defeat_screen()
                 return False
+
+    # проверка столкновения с игроком
+    rp = pg.Rect(player_x, player_y, player_width, player_height)
+    re = pg.Rect(enemy_x, enemy_y, enemy_width, enemy_height)
+    if rp.colliderect(re):
+        print("Collided!")
+        defeat_screen()
+        return False
+
     return True
 
 
@@ -160,7 +194,7 @@ def display_redraw():
 
 
 def event_processing():
-    global player_x, player_dx
+    global player_x, player_dx, player_y, running
     running = True
     for event in pg.event.get():
         # нажали крестик на окне
@@ -181,14 +215,20 @@ def event_processing():
 
         # Движение игрока с помощью мыши
         if event.type == pg.MOUSEMOTION:
-            player_x, _ = pg.mouse.get_pos()
+            player_x, player_y = pg.mouse.get_pos()
             player_x -= player_width / 2  # Центровка корабля относительно курсора мыши
+            player_y -= player_height / 2  # Центровка корабля относительно курсора мыши
 
         # Ограничение движения игрока в пределах экрана
         if player_x < 0:
             player_x = 0
         elif player_x > screen_width - player_width:
             player_x = screen_width - player_width
+
+        if player_y < 40:
+            player_y = 0
+        elif player_y > screen_height - player_height:
+            player_y = screen_height - player_height
 
         if counter_enemy >= 10:
             running = False
@@ -197,8 +237,6 @@ def event_processing():
     return running
 
 
-# random.seed(77)
-missed_shots = 0
 enemy_create()
 running = True
 while running:
@@ -210,3 +248,4 @@ while running:
         break
     running = enemy_model()
 pg.quit()
+sys.exit()
